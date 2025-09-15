@@ -1,0 +1,16 @@
+name: Keep Service Warm
+
+on:
+  schedule:
+    # Runs every 4 minutes
+    - cron: '*/4 * * * *'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  keep-warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          curl -f https://web-production-30f22.up.railway.app/health || exit 1
+          echo "Service pinged successfully at $(date)"
