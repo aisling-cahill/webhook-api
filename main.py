@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import asyncpg
 import os
@@ -42,8 +42,12 @@ async def shutdown_event():
         await db_pool.close()
 
 @app.post("/telnyx-dynamic-vars", response_model=DynamicVariablesResponse)
-async def telnyx_webhook(payload: TelnyxWebhookPayload):
+async def telnyx_webhook(request: Request, payload: TelnyxWebhookPayload):
     try:
+        # Log the incoming IP address
+        client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
+        print(f"🔍 Webhook received from IP: {client_ip}")
+
         # Extract the patient phone number from the payload
         patient_phone = payload.data.get("payload", {}).get("telnyx_end_user_target")
 
