@@ -1,6 +1,6 @@
 # Telnyx Dynamic Variables Webhook API
 
-A lightweight FastAPI service that replaces your n8n workflow for handling Telnyx webhooks and querying appointment data.
+A lightweight FastAPI service for handling Telnyx webhooks and querying appointment data.
 
 ## Setup
 
