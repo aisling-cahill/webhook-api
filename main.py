@@ -9,21 +9,37 @@ load_dotenv()
 
 app = FastAPI(title="Telnyx Dynamic Variables API")
 
+# Global connection pool
+db_pool = None
+
 class TelnyxWebhookPayload(BaseModel):
     data: Dict[str, Any]
 
 class DynamicVariablesResponse(BaseModel):
     dynamic_variables: Dict[str, Optional[str]]
 
-async def get_db_connection():
+@app.on_event("startup")
+async def startup_event():
+    global db_pool
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise HTTPException(status_code=500, detail="Database URL not configured")
 
     try:
-        return await asyncpg.connect(database_url)
+        db_pool = await asyncpg.create_pool(
+            database_url,
+            min_size=1,
+            max_size=5,
+            command_timeout=5
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+        print(f"Failed to create database pool: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global db_pool
+    if db_pool:
+        await db_pool.close()
 
 @app.post("/telnyx-dynamic-vars", response_model=DynamicVariablesResponse)
 async def telnyx_webhook(payload: TelnyxWebhookPayload):
@@ -34,10 +50,8 @@ async def telnyx_webhook(payload: TelnyxWebhookPayload):
         if not patient_phone:
             raise HTTPException(status_code=400, detail="telnyx_end_user_target not found in payload")
 
-        # Connect to database
-        conn = await get_db_connection()
-
-        try:
+        # Use connection pool instead of creating new connection
+        async with db_pool.acquire() as conn:
             # Execute the query from your n8n workflow
             query = """
             SELECT *
@@ -75,9 +89,6 @@ async def telnyx_webhook(payload: TelnyxWebhookPayload):
                     "last_name": result.get("last_name", "")
                 }
             )
-
-        finally:
-            await conn.close()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing webhook: {str(e)}")
