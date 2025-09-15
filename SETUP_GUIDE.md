@@ -59,7 +59,7 @@
 
 ## Step 4: Test with Real Data
 
-Use the sample webhook data from your n8n file to test:
+Use the sample webhook data to test:
 
 ```bash
 curl -X POST "http://localhost:8000/telnyx-dynamic-vars" \
