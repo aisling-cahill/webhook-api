@@ -4,6 +4,7 @@ import asyncpg
 import os
 from dotenv import load_dotenv
 from typing import Optional, Dict, Any
+from datetime import datetime
 
 load_dotenv()
 
@@ -17,6 +18,41 @@ class TelnyxWebhookPayload(BaseModel):
 
 class DynamicVariablesResponse(BaseModel):
     dynamic_variables: Dict[str, Optional[str]]
+
+def format_appointment_time(appointment_time):
+    """Convert appointment time to spoken format like 'May 1st at 4:30 PM'"""
+    if not appointment_time:
+        return ""
+
+    try:
+        # Parse the datetime
+        if isinstance(appointment_time, str):
+            dt = datetime.fromisoformat(appointment_time.replace('Z', '+00:00'))
+        else:
+            dt = appointment_time
+
+        # Format month and day with ordinal suffix
+        month = dt.strftime("%B")
+        day = dt.day
+        if day in [11, 12, 13]:
+            suffix = "th"
+        elif day % 10 == 1:
+            suffix = "st"
+        elif day % 10 == 2:
+            suffix = "nd"
+        elif day % 10 == 3:
+            suffix = "rd"
+        else:
+            suffix = "th"
+
+        # Format time in 12-hour format
+        time_str = dt.strftime("%I:%M %p").lstrip("0")
+
+        return f"{month} {day}{suffix} at {time_str}"
+
+    except Exception as e:
+        print(f"Error formatting appointment time: {e}")
+        return str(appointment_time)
 
 @app.on_event("startup")
 async def startup_event():
@@ -88,7 +124,7 @@ async def telnyx_webhook(request: Request, payload: TelnyxWebhookPayload):
                     "patient_email": result.get("patient_email", ""),
                     "patient_phone": result.get("patient_phone", ""),
                     "paid": str(result.get("paid", "")),
-                    "appointment_time": str(result.get("appointment_time", "")),
+                    "appointment_time": format_appointment_time(result.get("appointment_time")),
                     "first_name": result.get("first_name", ""),
                     "last_name": result.get("last_name", "")
                 }
